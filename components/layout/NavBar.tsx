@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   CalendarDays,
@@ -12,8 +12,10 @@ import {
   Users,
   TrendingUp,
   Settings,
+  LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 
 const tabs = [
   { href: '/dashboard',     label: 'Inicio',       icon: LayoutDashboard  },
@@ -29,6 +31,13 @@ const tabs = [
 
 export default function NavBar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   return (
     <nav className="fixed left-0 top-0 bottom-0 z-50 bg-white border-r border-[var(--border)] flex flex-col pt-safe-top w-16 md:w-48">
@@ -77,6 +86,15 @@ export default function NavBar() {
           )
         })}
       </div>
+
+      {/* Logout */}
+      <button
+        onClick={handleLogout}
+        className="flex items-center gap-3 mx-1.5 mb-3 px-2 py-2.5 rounded-xl text-xs font-medium text-[var(--muted-foreground)] hover:bg-red-50 hover:text-red-600 transition-colors"
+      >
+        <LogOut size={20} strokeWidth={1.8} className="shrink-0" />
+        <span className="hidden md:block truncate">Salir</span>
+      </button>
     </nav>
   )
 }
