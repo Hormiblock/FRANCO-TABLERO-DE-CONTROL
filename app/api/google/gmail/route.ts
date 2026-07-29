@@ -62,8 +62,25 @@ export async function GET() {
       const headers = msg?.payload?.headers ?? []
       const subject = headers.find(h => h.name === 'Subject')?.value ?? '(sin asunto)'
       const from = headers.find(h => h.name === 'From')?.value ?? ''
-      const date = headers.find(h => h.name === 'Date')?.value ?? ''
+      const dateRaw = headers.find(h => h.name === 'Date')?.value ?? ''
       const snippet = msg?.snippet ?? ''
+
+      let date = ''
+      if (dateRaw) {
+        try {
+          const d = new Date(dateRaw)
+          const hoy = new Date()
+          const ayer = new Date(); ayer.setDate(ayer.getDate() - 1)
+          if (d.toDateString() === hoy.toDateString()) {
+            date = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+          } else if (d.toDateString() === ayer.toDateString()) {
+            date = 'Ayer'
+          } else {
+            date = d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
+          }
+        } catch { date = '' }
+      }
+
       return { id: t.id, subject, from, date, snippet, threadId: t.id }
     })
   )
