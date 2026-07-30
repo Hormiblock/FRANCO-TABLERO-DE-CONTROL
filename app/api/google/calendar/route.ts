@@ -13,7 +13,11 @@ function getOAuth2Client(tokens: { access_token: string; refresh_token?: string;
   return client
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const year  = parseInt(searchParams.get('year')  ?? String(new Date().getFullYear()))
+  const month = parseInt(searchParams.get('month') ?? String(new Date().getMonth())) // 0-based
+
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,17 +46,16 @@ export async function GET() {
   const auth = getOAuth2Client(tokenRow)
   const calendar = google.calendar({ version: 'v3', auth })
 
-  const now = new Date()
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
-  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+  const timeMin = new Date(year, month, 1, 0, 0, 0).toISOString()
+  const timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
 
   const res = await calendar.events.list({
     calendarId: 'primary',
-    timeMin: startOfDay.toISOString(),
-    timeMax: endOfDay.toISOString(),
+    timeMin,
+    timeMax,
     singleEvents: true,
     orderBy: 'startTime',
-    maxResults: 20,
+    maxResults: 100,
   })
 
   const events = (res.data.items ?? []).map(e => ({

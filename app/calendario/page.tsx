@@ -1,109 +1,113 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import AppShell from '@/components/layout/AppShell'
-import { EMPRESAS, type Empresa } from '@/lib/utils'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, ExternalLink } from 'lucide-react'
 
-const EVENTOS_DEMO = [
-  { id: '1', titulo: 'Stand-up Ostara',             empresa: 'ostara' as Empresa,     fecha: '2026-07-07', hora: '09:00', tipo: 'reunion' },
-  { id: '2', titulo: 'Envío propuesta TOYOTA',       empresa: 'ostara' as Empresa,     fecha: '2026-07-07', hora: '12:00', tipo: 'deadline' },
-  { id: '3', titulo: 'Reunión proveedor cemento',    empresa: 'hormiblock' as Empresa, fecha: '2026-07-08', hora: '11:00', tipo: 'reunion' },
-  { id: '4', titulo: 'Cierre licitación Municipal',  empresa: 'blockera' as Empresa,   fecha: '2026-07-09', hora: '17:00', tipo: 'deadline' },
-  { id: '5', titulo: 'Lanzamiento IVECO',            empresa: 'ostara' as Empresa,     fecha: '2026-07-10', hora: '19:00', tipo: 'evento' },
-  { id: '6', titulo: 'Revisión cultivos Granny',     empresa: 'granny' as Empresa,     fecha: '2026-07-11', hora: '08:00', tipo: 'visita' },
-  { id: '7', titulo: 'Reunión contador',             empresa: 'granny' as Empresa,     fecha: '2026-07-14', hora: '10:00', tipo: 'reunion' },
-  { id: '8', titulo: 'Cierre licitación Ruta 7',     empresa: 'hormiblock' as Empresa, fecha: '2026-07-15', hora: '18:00', tipo: 'deadline' },
-  { id: '9', titulo: 'Feria Construir 2026',         empresa: 'ostara' as Empresa,     fecha: '2026-07-20', hora: '10:00', tipo: 'evento' },
-]
-
-const TIPO_ICON: Record<string, string> = {
-  reunion: '🤝',
-  deadline: '⚠️',
-  evento: '🎯',
-  visita: '📍',
+interface CalEvent {
+  id: string
+  titulo: string
+  inicio: string
+  fin: string
+  allDay: boolean
+  meet: string | null
+  lugar: string
+  descripcion: string
 }
 
 const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
+function toDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
+function formatHora(isoStr: string) {
+  try { return new Date(isoStr).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) }
+  catch { return '' }
+}
+
+function fechaDeEvento(ev: CalEvent): string {
+  const str = ev.inicio ?? ''
+  if (str.includes('T')) return str.split('T')[0]
+  return str
+}
+
 export default function CalendarioPage() {
   const hoy = new Date()
   const [mesVista, setMesVista] = useState({ año: hoy.getFullYear(), mes: hoy.getMonth() })
-  const [diaSeleccionado, setDiaSeleccionado] = useState<string | null>(null)
-  const [filtroEmpresa, setFiltroEmpresa] = useState<Empresa | 'todas'>('todas')
+  const [diaSeleccionado, setDiaSeleccionado] = useState<string | null>(toDateStr(hoy))
+  const [eventos, setEventos] = useState<CalEvent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [googleOk, setGoogleOk] = useState<boolean | null>(null)
 
-  const primerDia = new Date(mesVista.año, mesVista.mes, 1)
-  const diasEnMes = new Date(mesVista.año, mesVista.mes + 1, 0).getDate()
+  const cargar = useCallback(async (año: number, mes: number) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/google/calendar?year=${año}&month=${mes}`)
+      if (res.status === 403) { setGoogleOk(false); setLoading(false); return }
+      const data = await res.json()
+      setEventos(data.events ?? [])
+      setGoogleOk(true)
+    } catch { setGoogleOk(false) }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    cargar(mesVista.año, mesVista.mes)
+  }, [mesVista, cargar])
+
+  const primerDia   = new Date(mesVista.año, mesVista.mes, 1)
+  const diasEnMes   = new Date(mesVista.año, mesVista.mes + 1, 0).getDate()
   const offsetInicio = primerDia.getDay()
 
-  const mesAnterior = () => setMesVista(v => {
-    if (v.mes === 0) return { año: v.año - 1, mes: 11 }
-    return { ...v, mes: v.mes - 1 }
-  })
-  const mesSiguiente = () => setMesVista(v => {
-    if (v.mes === 11) return { año: v.año + 1, mes: 0 }
-    return { ...v, mes: v.mes + 1 }
-  })
+  function mesAnterior() {
+    setMesVista(v => v.mes === 0 ? { año: v.año - 1, mes: 11 } : { ...v, mes: v.mes - 1 })
+  }
+  function mesSiguiente() {
+    setMesVista(v => v.mes === 11 ? { año: v.año + 1, mes: 0 } : { ...v, mes: v.mes + 1 })
+  }
 
-  const eventosDelMes = EVENTOS_DEMO.filter(e => {
-    const fecha = new Date(e.fecha)
-    return fecha.getFullYear() === mesVista.año && fecha.getMonth() === mesVista.mes
-      && (filtroEmpresa === 'todas' || e.empresa === filtroEmpresa)
-  })
-
-  const eventosPorDia = (dia: number) => {
-    const fechaStr = `${mesVista.año}-${String(mesVista.mes + 1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`
-    return eventosDelMes.filter(e => e.fecha === fechaStr)
+  function eventosPorDia(dia: number) {
+    const fechaStr = `${mesVista.año}-${String(mesVista.mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`
+    return eventos.filter(e => fechaDeEvento(e) === fechaStr)
   }
 
   const eventosDelDia = diaSeleccionado
-    ? EVENTOS_DEMO.filter(e => e.fecha === diaSeleccionado && (filtroEmpresa === 'todas' || e.empresa === filtroEmpresa))
-    : eventosDelMes.sort((a, b) => a.fecha.localeCompare(b.fecha))
+    ? eventos.filter(e => fechaDeEvento(e) === diaSeleccionado)
+    : eventos
+
+  const hoyStr = toDateStr(hoy)
 
   return (
-    <AppShell
-      title="Calendario"
-      headerRight={
-        <button className="flex items-center gap-1.5 bg-white/20 text-white text-xs font-medium px-3 py-1.5 rounded-xl">
-          <Plus size={14} /> Nuevo evento
-        </button>
-      }
-    >
+    <AppShell title="Calendario">
       <div className="p-4 space-y-4">
 
-        {/* Filtro empresa */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {(['todas', 'ostara', 'hormiblock', 'blockera', 'granny'] as const).map((e) => {
-            const emp = e === 'todas' ? null : EMPRESAS[e]
-            const activo = filtroEmpresa === e
-            return (
-              <button
-                key={e}
-                onClick={() => setFiltroEmpresa(e)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors ${
-                  activo
-                    ? 'bg-[var(--primary)] text-white'
-                    : 'bg-white border border-[var(--border)] text-[var(--muted-foreground)]'
-                }`}
-              >
-                {emp && <span className={`w-2 h-2 rounded-full ${emp.dot}`} />}
-                {e === 'todas' ? 'Todas' : emp!.label}
-              </button>
-            )
-          })}
-        </div>
+        {/* Banner Google desconectado */}
+        {googleOk === false && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Conectá tu cuenta Google</p>
+              <p className="text-xs text-amber-700 mt-0.5">Para ver tus eventos reales</p>
+            </div>
+            <a href="/api/auth/google" className="bg-[var(--primary)] text-white text-xs font-semibold px-4 py-2 rounded-xl shrink-0">
+              Conectar
+            </a>
+          </div>
+        )}
 
-        {/* Calendaria mensual */}
+        {/* Calendario mensual */}
         <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
+
           {/* Header mes */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
             <button onClick={mesAnterior} className="p-1 rounded-lg hover:bg-[var(--muted)]">
               <ChevronLeft size={18} />
             </button>
-            <span className="font-semibold text-sm">
-              {MESES[mesVista.mes]} {mesVista.año}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm">{MESES[mesVista.mes]} {mesVista.año}</span>
+              {loading && <Loader2 size={14} className="animate-spin text-[var(--primary)]" />}
+            </div>
             <button onClick={mesSiguiente} className="p-1 rounded-lg hover:bg-[var(--muted)]">
               <ChevronRight size={18} />
             </button>
@@ -112,41 +116,33 @@ export default function CalendarioPage() {
           {/* Días semana */}
           <div className="grid grid-cols-7 border-b border-[var(--border)]">
             {DIAS_SEMANA.map(d => (
-              <div key={d} className="text-center text-[10px] font-semibold text-[var(--muted-foreground)] py-2">
-                {d}
-              </div>
+              <div key={d} className="text-center text-[10px] font-semibold text-[var(--muted-foreground)] py-2">{d}</div>
             ))}
           </div>
 
-          {/* Grilla de días */}
+          {/* Grilla días */}
           <div className="grid grid-cols-7">
-            {Array.from({ length: offsetInicio }).map((_, i) => (
-              <div key={`empty-${i}`} className="h-10" />
-            ))}
+            {Array.from({ length: offsetInicio }).map((_, i) => <div key={`e-${i}`} className="h-11" />)}
             {Array.from({ length: diasEnMes }).map((_, i) => {
               const dia = i + 1
-              const fechaStr = `${mesVista.año}-${String(mesVista.mes + 1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`
-              const eventos = eventosPorDia(dia)
-              const esHoy = dia === hoy.getDate() && mesVista.mes === hoy.getMonth() && mesVista.año === hoy.getFullYear()
+              const fechaStr = `${mesVista.año}-${String(mesVista.mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`
+              const evs = eventosPorDia(dia)
+              const esHoy = fechaStr === hoyStr
               const seleccionado = diaSeleccionado === fechaStr
 
               return (
                 <button
                   key={dia}
                   onClick={() => setDiaSeleccionado(seleccionado ? null : fechaStr)}
-                  className={`h-10 flex flex-col items-center justify-start pt-1 relative transition-colors ${
-                    seleccionado ? 'bg-[var(--primary)]/10' : 'hover:bg-[var(--muted)]'
-                  }`}
+                  className={`h-11 flex flex-col items-center justify-start pt-1 relative transition-colors ${seleccionado ? 'bg-[var(--primary)]/10' : 'hover:bg-[var(--muted)]'}`}
                 >
-                  <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${
-                    esHoy ? 'bg-[var(--primary)] text-white' : ''
-                  }`}>
+                  <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${esHoy ? 'bg-[var(--primary)] text-white font-bold' : ''}`}>
                     {dia}
                   </span>
-                  {eventos.length > 0 && (
+                  {evs.length > 0 && (
                     <div className="flex gap-0.5 mt-0.5">
-                      {eventos.slice(0, 3).map((e, i) => (
-                        <span key={i} className={`w-1 h-1 rounded-full ${EMPRESAS[e.empresa].dot}`} />
+                      {evs.slice(0, 3).map((_, j) => (
+                        <span key={j} className="w-1 h-1 rounded-full bg-[var(--primary)]" />
                       ))}
                     </div>
                   )}
@@ -156,35 +152,57 @@ export default function CalendarioPage() {
           </div>
         </div>
 
-        {/* Lista de eventos */}
+        {/* Lista eventos del día seleccionado */}
         <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
           <div className="px-4 py-3 border-b border-[var(--border)]">
             <span className="font-semibold text-sm">
               {diaSeleccionado
-                ? `Eventos del ${new Date(diaSeleccionado + 'T00:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long' })}`
-                : 'Todos los eventos del mes'
+                ? `Eventos — ${new Date(diaSeleccionado + 'T00:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}`
+                : `Todos los eventos de ${MESES[mesVista.mes]}`
               }
             </span>
           </div>
-          {eventosDelDia.length === 0 && (
-            <p className="text-center text-sm text-[var(--muted-foreground)] py-8">Sin eventos</p>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 size={20} className="animate-spin text-[var(--primary)]" />
+            </div>
+          ) : eventosDelDia.length === 0 ? (
+            <p className="text-center text-sm text-[var(--muted-foreground)] py-8">
+              {googleOk === false ? 'Conectá Google para ver tus eventos' : 'Sin eventos 🎉'}
+            </p>
+          ) : (
+            <div className="divide-y divide-[var(--border)]">
+              {eventosDelDia
+                .sort((a, b) => (a.inicio ?? '').localeCompare(b.inicio ?? ''))
+                .map((ev) => (
+                  <div key={ev.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="w-1 h-10 rounded-full bg-[var(--primary)] shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{ev.titulo}</p>
+                      <p className="text-xs text-[var(--muted-foreground)]">
+                        {ev.allDay
+                          ? 'Todo el día'
+                          : `${formatHora(ev.inicio)} – ${formatHora(ev.fin)}`
+                        }
+                        {ev.lugar ? ` · ${ev.lugar}` : ''}
+                      </p>
+                    </div>
+                    {ev.meet && (
+                      <a
+                        href={ev.meet}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-xs text-[var(--primary)] font-semibold shrink-0"
+                      >
+                        Meet <ExternalLink size={10} />
+                      </a>
+                    )}
+                  </div>
+                ))
+              }
+            </div>
           )}
-          {eventosDelDia.map((ev) => {
-            const emp = EMPRESAS[ev.empresa]
-            return (
-              <div key={ev.id} className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)] last:border-0">
-                <div className={`w-1 self-stretch rounded-full ${emp.dot}`} />
-                <div className="text-lg">{TIPO_ICON[ev.tipo]}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{ev.titulo}</p>
-                  <p className="text-xs text-[var(--muted-foreground)]">
-                    {emp.label} · {new Date(ev.fecha + 'T00:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
-                  </p>
-                </div>
-                <span className="text-xs font-semibold text-[var(--muted-foreground)]">{ev.hora}</span>
-              </div>
-            )
-          })}
         </div>
 
       </div>
