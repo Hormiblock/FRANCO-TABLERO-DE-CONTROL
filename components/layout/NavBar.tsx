@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Settings,
   LogOut,
+  FolderKanban,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -21,6 +22,7 @@ const tabs = [
   { href: '/dashboard',     label: 'Inicio',       icon: LayoutDashboard  },
   { href: '/calendario',    label: 'Calendario',   icon: CalendarDays     },
   { href: '/pendientes',    label: 'Pendientes',   icon: CheckSquare      },
+  { href: '/proyectos',     label: 'Proyectos',    icon: FolderKanban     },
   { href: '/licitaciones',  label: 'Licitaciones', icon: FileWarning      },
   { href: '/emails',        label: 'Emails',       icon: Mail             },
   { href: '/chat',          label: 'Asignar',      icon: MessageSquarePlus},
