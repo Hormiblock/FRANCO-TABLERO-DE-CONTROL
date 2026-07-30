@@ -13,11 +13,7 @@ function getOAuth2Client(tokens: { access_token: string; refresh_token?: string;
   return client
 }
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const year  = parseInt(searchParams.get('year')  ?? String(new Date().getFullYear()))
-  const month = parseInt(searchParams.get('month') ?? String(new Date().getMonth())) // 0-based
-
+async function getSupabaseAndUser() {
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,16 +27,20 @@ export async function GET(request: Request) {
       },
     }
   )
-
   const { data: { user } } = await supabase.auth.getUser()
+  return { supabase, user }
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const year  = parseInt(searchParams.get('year')  ?? String(new Date().getFullYear()))
+  const month = parseInt(searchParams.get('month') ?? String(new Date().getMonth()))
+
+  const { supabase, user } = await getSupabaseAndUser()
   if (!user) return NextResponse.json({ error: 'no_auth' }, { status: 401 })
 
   const { data: tokenRow } = await supabase
-    .from('google_tokens')
-    .select('*')
-    .eq('user_id', user.id)
-    .single()
-
+    .from('google_tokens').select('*').eq('user_id', user.id).single()
   if (!tokenRow) return NextResponse.json({ error: 'no_google_token' }, { status: 403 })
 
   const auth = getOAuth2Client(tokenRow)
@@ -71,4 +71,56 @@ export async function GET(request: Request) {
   }))
 
   return NextResponse.json({ events })
+}
+
+export async function POST(request: Request) {
+  const { supabase, user } = await getSupabaseAndUser()
+  if (!user) return NextResponse.json({ error: 'no_auth' }, { status: 401 })
+
+  const { data: tokenRow } = await supabase
+    .from('google_tokens').select('*').eq('user_id', user.id).single()
+  if (!tokenRow) return NextResponse.json({ error: 'no_google_token' }, { status: 403 })
+
+  const body = await request.json()
+  const { titulo, fecha, horaInicio, horaFin, descripcion, lugar, conMeet, allDay } = body
+
+  const auth = getOAuth2Client(tokenRow)
+  const calendar = google.calendar({ version: 'v3', auth })
+
+  const event: Parameters<typeof calendar.events.insert>[0]['requestBody'] = {
+    summary: titulo,
+    description: descripcion ?? '',
+    location: lugar ?? '',
+  }
+
+  if (allDay) {
+    event.start = { date: fecha }
+    event.end   = { date: fecha }
+  } else {
+    event.start = { dateTime: `${fecha}T${horaInicio}:00`, timeZone: 'America/Argentina/Buenos_Aires' }
+    event.end   = { dateTime: `${fecha}T${horaFin}:00`,   timeZone: 'America/Argentina/Buenos_Aires' }
+  }
+
+  if (conMeet) {
+    event.conferenceData = {
+      createRequest: {
+        requestId: `meet-${Date.now()}`,
+        conferenceSolutionKey: { type: 'hangoutsMeet' },
+      },
+    }
+  }
+
+  const res = await calendar.events.insert({
+    calendarId: 'primary',
+    requestBody: event,
+    conferenceDataVersion: conMeet ? 1 : 0,
+  })
+
+  return NextResponse.json({
+    id: res.data.id,
+    titulo: res.data.summary,
+    inicio: res.data.start?.dateTime ?? res.data.start?.date,
+    fin: res.data.end?.dateTime ?? res.data.end?.date,
+    meet: res.data.hangoutLink ?? null,
+  })
 }
