@@ -87,7 +87,8 @@ export async function POST(request: Request) {
   const auth = getOAuth2Client(tokenRow)
   const calendar = google.calendar({ version: 'v3', auth })
 
-  const event: Parameters<typeof calendar.events.insert>[0]['requestBody'] = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const event: Record<string, any> = {
     summary: titulo,
     description: descripcion ?? '',
     location: lugar ?? '',
