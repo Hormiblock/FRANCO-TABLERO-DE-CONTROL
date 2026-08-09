@@ -1,49 +1,19 @@
 import { google } from 'googleapis'
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-
-function getOAuth2Client(tokens: { access_token: string; refresh_token?: string; expiry_date?: number }) {
-  const client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`
-  )
-  client.setCredentials(tokens)
-  return client
-}
-
-async function getSupabaseAndUser() {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => cookiesToSet.forEach(({ name, value, options }) =>
-          cookieStore.set(name, value, options)
-        ),
-      },
-    }
-  )
-  const { data: { user } } = await supabase.auth.getUser()
-  return { supabase, user }
-}
+import { getGoogleAuthAndUser } from '@/lib/google-auth'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const year  = parseInt(searchParams.get('year')  ?? String(new Date().getFullYear()))
   const month = parseInt(searchParams.get('month') ?? String(new Date().getMonth()))
 
-  const { supabase, user } = await getSupabaseAndUser()
-  if (!user) return NextResponse.json({ error: 'no_auth' }, { status: 401 })
+  const result = await getGoogleAuthAndUser()
+  if ('error' in result) {
+    const status = result.error === 'no_auth' ? 401 : 403
+    return NextResponse.json({ error: result.error }, { status })
+  }
 
-  const { data: tokenRow } = await supabase
-    .from('google_tokens').select('*').eq('user_id', user.id).single()
-  if (!tokenRow) return NextResponse.json({ error: 'no_google_token' }, { status: 403 })
-
-  const auth = getOAuth2Client(tokenRow)
+  const { auth } = result
   const calendar = google.calendar({ version: 'v3', auth })
 
   const timeMin = new Date(year, month, 1, 0, 0, 0).toISOString()
@@ -74,18 +44,17 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { supabase, user } = await getSupabaseAndUser()
-  if (!user) return NextResponse.json({ error: 'no_auth' }, { status: 401 })
+  const result = await getGoogleAuthAndUser()
+  if ('error' in result) {
+    const status = result.error === 'no_auth' ? 401 : 403
+    return NextResponse.json({ error: result.error }, { status })
+  }
 
-  const { data: tokenRow } = await supabase
-    .from('google_tokens').select('*').eq('user_id', user.id).single()
-  if (!tokenRow) return NextResponse.json({ error: 'no_google_token' }, { status: 403 })
+  const { auth } = result
+  const calendar = google.calendar({ version: 'v3', auth })
 
   const body = await request.json()
   const { titulo, fecha, horaInicio, horaFin, descripcion, lugar, conMeet, allDay } = body
-
-  const auth = getOAuth2Client(tokenRow)
-  const calendar = google.calendar({ version: 'v3', auth })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const event: Record<string, any> = {
