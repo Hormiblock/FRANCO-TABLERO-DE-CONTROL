@@ -16,13 +16,19 @@ export async function GET() {
   const gmail = google.gmail({ version: 'v1', auth })
 
   // Traer emails sin leer de las últimas 48h
-  const res = await gmail.users.threads.list({
-    userId: 'me',
-    q: 'is:unread in:inbox -category:promotions -category:social newer_than:2d',
-    maxResults: 20,
-  })
+  let threadsRes
+  try {
+    threadsRes = await gmail.users.threads.list({
+      userId: 'me',
+      q: 'is:unread in:inbox -category:promotions -category:social newer_than:2d',
+      maxResults: 20,
+    })
+  } catch (err) {
+    console.error('Gmail error:', err)
+    return NextResponse.json({ error: 'gmail_error', message: String(err) }, { status: 403 })
+  }
 
-  const threads = res.data.threads ?? []
+  const threads = threadsRes.data.threads ?? []
   if (threads.length === 0) {
     return NextResponse.json({
       resumen: 'Sin emails importantes sin leer. 🎉',
@@ -80,7 +86,7 @@ Solo respondé con el JSON, sin texto adicional.`,
 
   const texto = message.content[0].type === 'text' ? message.content[0].text : '{}'
 
-  let analisis = { resumen: '', urgentes: [], puede_esperar: [], accion_recomendada: '' }
+  let analisis = { resumen: '', urgentes: [] as string[], puede_esperar: [] as string[], accion_recomendada: '' }
   try {
     analisis = JSON.parse(texto)
   } catch {

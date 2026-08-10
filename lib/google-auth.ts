@@ -62,5 +62,15 @@ export async function getGoogleAuthAndUser() {
     }
   }
 
+  // Verificar que el cliente tiene credenciales válidas
+  try {
+    const creds = oauth2Client.credentials
+    if (!creds.access_token && !creds.refresh_token) {
+      return { error: 'token_expired' as const }
+    }
+  } catch {
+    return { error: 'token_expired' as const }
+  }
+
   return { auth: oauth2Client, user, supabase }
 }
