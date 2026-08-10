@@ -145,7 +145,7 @@ Formato: texto limpio, sin markdown, listo para recibir por email.`
       return NextResponse.json({ ok: false, error: 'send_failed', detail: String(sendErr), emailDestino })
     }
   } else {
-    console.error('Sin email destino — perfil:', perfilRes.data, 'error:', perfilRes.error)
+    console.error('Sin email destino — user.email:', user.email)
     return NextResponse.json({ ok: false, error: 'no_email_destino', userId: user.id })
   }
 
