@@ -287,10 +287,10 @@ export default function PendientesPage() {
       )}
 
       {/* Modal nueva tarea */}
-      {showNueva && perfil && (
+      {showNueva && (
         <NuevaTareaModal
-          miId={perfil.id}
-          empresasPermitidas={empresasPermitidas}
+          miId={perfil?.id ?? ''}
+          empresasPermitidas={perfil ? empresasPermitidas : ['ostara', 'hormiblock', 'blockera', 'granny']}
           onClose={() => setShowNueva(false)}
           onCreada={t => setTareas(ts => [t, ...ts])}
         />
