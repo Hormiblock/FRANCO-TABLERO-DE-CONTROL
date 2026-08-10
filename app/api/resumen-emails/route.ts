@@ -80,17 +80,19 @@ Respondé en este formato JSON exacto:
   "accion_recomendada": "Una acción concreta que Franco debería hacer primero"
 }
 
-Solo respondé con el JSON, sin texto adicional.`,
+IMPORTANTE: Respondé ÚNICAMENTE con el JSON puro, sin bloques de código, sin backticks, sin texto adicional antes o después.`,
     }],
   })
 
-  const texto = message.content[0].type === 'text' ? message.content[0].text : '{}'
+  const textoRaw = message.content[0].type === 'text' ? message.content[0].text : '{}'
+  // Limpiar posibles bloques de código markdown
+  const texto = textoRaw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
 
   let analisis = { resumen: '', urgentes: [] as string[], puede_esperar: [] as string[], accion_recomendada: '' }
   try {
     analisis = JSON.parse(texto)
   } catch {
-    analisis.resumen = texto
+    analisis.resumen = textoRaw
   }
 
   return NextResponse.json({ ...analisis, emails: details })
