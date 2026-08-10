@@ -110,10 +110,9 @@ Formato: texto limpio, sin markdown, listo para recibir por email.`
 
   const reporte = message.content[0].type === 'text' ? message.content[0].text : ''
 
-  // Enviar por Gmail al propio usuario
-  const perfilRes = await supabase.from('perfiles').select('email, nombre').eq('id', user.id).single()
-  const emailDestino = perfilRes.data?.email ?? ''
-  const nombre       = perfilRes.data?.nombre?.split(' ')[0] ?? 'Franco'
+  // Usar el email del usuario de auth directamente
+  const emailDestino = user.email ?? ''
+  const nombre       = user.user_metadata?.nombre?.split(' ')[0] ?? user.email?.split('@')[0] ?? 'Franco'
 
   if (emailDestino) {
     const asunto  = `☀️ Reporte del día — ${fechaStr}`

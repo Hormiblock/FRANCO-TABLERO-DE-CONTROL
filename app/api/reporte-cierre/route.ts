@@ -124,14 +124,11 @@ Formato: texto limpio, sin markdown, listo para recibir por email.`
 
   const reporte = message.content[0].type === 'text' ? message.content[0].text : ''
 
-  // Enviar por Gmail
-  const perfilRes = await supabase.from('perfiles').select('email, nombre').eq('id', user.id).single()
-  const emailDestino = perfilRes.data?.email ?? ''
-  const nombre       = perfilRes.data?.nombre?.split(' ')[0] ?? 'Franco'
+  // Usar el email del usuario de auth directamente
+  const emailDestino = user.email ?? ''
+  const nombre       = user.user_metadata?.nombre?.split(' ')[0] ?? user.email?.split('@')[0] ?? 'Franco'
 
-  console.log('Perfil encontrado:', perfilRes.data)
-  console.log('Email destino:', emailDestino)
-  console.log('Error perfil:', perfilRes.error)
+  console.log('Email destino (auth):', emailDestino)
 
   if (emailDestino) {
     const asunto = `🌙 Cierre del día — ${fechaStr}`
