@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Tarea, Empresa, TareaEstado, TareaPrioridad } from '@/lib/types'
@@ -9,6 +9,8 @@ const EMPRESAS_LIST: Empresa[] = ['ostara', 'hormiblock', 'blockera', 'granny']
 const EMPRESA_LABEL: Record<Empresa, string> = {
   ostara: 'Ostara', hormiblock: 'Hormiblock', blockera: 'Blockera', granny: 'Granny'
 }
+
+interface Perfil { id: string; nombre: string; rol: string }
 
 interface Props {
   miId: string
@@ -23,8 +25,16 @@ export default function NuevaTareaModal({ miId, empresasPermitidas, onClose, onC
   const [empresa, setEmpresa]         = useState<Empresa>(empresasPermitidas[0] ?? 'ostara')
   const [prioridad, setPrioridad]     = useState<TareaPrioridad>('media')
   const [fecha, setFecha]             = useState('')
+  const [asignadoA, setAsignadoA]     = useState<string>('yo')
+  const [personas, setPersonas]       = useState<Perfil[]>([])
   const [saving, setSaving]           = useState(false)
   const [error, setError]             = useState('')
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.from('perfiles').select('id, nombre, rol').eq('rol', 'gerente')
+      .then(({ data }) => setPersonas(data ?? []))
+  }, [])
 
   async function crear() {
     if (!titulo.trim()) { setError('El título es obligatorio'); return }
@@ -38,7 +48,8 @@ export default function NuevaTareaModal({ miId, empresasPermitidas, onClose, onC
         empresa,
         prioridad,
         estado: 'pendiente' as TareaEstado,
-        creado_por: miId,
+        creado_por: miId || undefined,
+        asignado_a: asignadoA === 'yo' ? (miId || undefined) : asignadoA,
         fecha_limite: fecha || null,
       })
       .select()
@@ -113,6 +124,21 @@ export default function NuevaTareaModal({ miId, empresasPermitidas, onClose, onC
                 <option value="baja">⚪ Baja</option>
               </select>
             </div>
+          </div>
+
+          {/* Asignado a */}
+          <div>
+            <label className="text-xs font-semibold text-[var(--muted-foreground)] block mb-1">Asignado a</label>
+            <select
+              value={asignadoA}
+              onChange={e => setAsignadoA(e.target.value)}
+              className="w-full text-sm border border-[var(--border)] rounded-xl px-3 py-2.5 outline-none focus:border-[var(--primary)] bg-white"
+            >
+              <option value="yo">Yo (Franco)</option>
+              {personas.map(p => (
+                <option key={p.id} value={p.id}>{p.nombre}</option>
+              ))}
+            </select>
           </div>
 
           {/* Fecha límite */}
