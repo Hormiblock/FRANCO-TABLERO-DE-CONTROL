@@ -45,10 +45,13 @@ export default function GerentesPage() {
 
   const cargar = useCallback(async () => {
     setLoading(true)
-    const [{ data: perfiles }, { data: bajData }] = await Promise.all([
+    const supabase = createClient()
+    const [{ data: perfiles, error: e1 }, { data: bajData, error: e2 }] = await Promise.all([
       supabase.from('perfiles').select('*').eq('rol', 'gerente'),
       supabase.from('bajadas').select('*').order('created_at', { ascending: false }),
     ])
+    if (e1) console.error('Error cargando gerentes:', e1)
+    if (e2) console.error('Error cargando bajadas:', e2)
     setGerentes((perfiles as Perfil[]) ?? [])
     setBajadas((bajData as Bajada[]) ?? [])
     setLoading(false)
