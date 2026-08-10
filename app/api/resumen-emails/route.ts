@@ -43,22 +43,26 @@ export async function GET() {
         userId: 'me',
         id: t.id!,
         format: 'metadata',
-        metadataHeaders: ['Subject', 'From', 'Date'],
+        metadataHeaders: ['Subject', 'From', 'Date', 'To', 'Cc'],
       })
       const msg     = thread.data.messages?.[0]
       const headers = msg?.payload?.headers ?? []
+      const to      = headers.find(h => h.name === 'To')?.value ?? ''
+      const cc      = headers.find(h => h.name === 'Cc')?.value ?? ''
+      const enCopia = cc.includes('fmanzone') || (!to.includes('fmanzone') && (to !== '' || cc !== ''))
       return {
         id:      t.id,
         subject: headers.find(h => h.name === 'Subject')?.value ?? '(sin asunto)',
         from:    headers.find(h => h.name === 'From')?.value ?? '',
         snippet: msg?.snippet ?? '',
+        enCopia,
       }
     })
   )
 
   // Pedir análisis a Claude
   const emailsTexto = details.map((e, i) =>
-    `${i + 1}. De: ${e.from}\n   Asunto: ${e.subject}\n   Preview: ${e.snippet}`
+    `${i + 1}. De: ${e.from}\n   Asunto: ${e.subject}\n   Preview: ${e.snippet}${e.enCopia ? '\n   [EN COPIA — solo para estar al tanto, no requiere respuesta directa]' : ''}`
   ).join('\n\n')
 
   const message = await anthropic.messages.create({
@@ -68,7 +72,7 @@ export async function GET() {
       role: 'user',
       content: `Sos el asistente de Franco Manzone, gerente de 4 empresas argentinas: Ostara (marketing/eventos), Hormiblock (hormigón), Blockera (construcción) y Granny (agro).
 
-Analizá estos emails sin leer y hacé un resumen ejecutivo breve en español argentino:
+Analizá estos emails sin leer y hacé un resumen ejecutivo breve en español argentino. Los emails marcados [EN COPIA] son para que Franco esté al tanto pero NO requieren respuesta directa suya — no los pongas en urgentes:
 
 ${emailsTexto}
 
