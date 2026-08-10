@@ -131,7 +131,7 @@ Formato: texto limpio, sin markdown, listo para recibir por email.`
   console.log('Email destino (auth):', emailDestino)
 
   if (emailDestino) {
-    const asunto = `🌙 Cierre del día — ${fechaStr}`
+    const asunto = `Cierre del dia - ${fechaStr}`
     const cuerpo = `Buenas ${nombre},\n\n${reporte}\n\n---\nEnviado automáticamente por tu Tablero de Control.`
     const raw = Buffer.from(
       `To: ${emailDestino}\r\nSubject: ${asunto}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${cuerpo}`

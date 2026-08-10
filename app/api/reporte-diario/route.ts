@@ -115,7 +115,7 @@ Formato: texto limpio, sin markdown, listo para recibir por email.`
   const nombre       = user.user_metadata?.nombre?.split(' ')[0] ?? user.email?.split('@')[0] ?? 'Franco'
 
   if (emailDestino) {
-    const asunto  = `☀️ Reporte del día — ${fechaStr}`
+    const asunto  = `Reporte del dia - ${fechaStr}`
     const cuerpo  = `Buenas ${nombre},\n\n${reporte}\n\n---\nEnviado automáticamente por tu Tablero de Control.`
     const raw = Buffer.from(
       `To: ${emailDestino}\r\nSubject: ${asunto}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${cuerpo}`
