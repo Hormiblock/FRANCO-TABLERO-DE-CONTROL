@@ -20,7 +20,7 @@ export async function GET() {
   try {
     threadsRes = await gmail.users.threads.list({
       userId: 'me',
-      q: 'is:unread in:inbox -category:promotions -category:social newer_than:2d',
+      q: 'is:unread in:inbox -category:promotions -category:social newer_than:7d',
       maxResults: 20,
     })
   } catch (err) {
