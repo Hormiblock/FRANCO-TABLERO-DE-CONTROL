@@ -42,7 +42,7 @@ export async function GET() {
           const hoy  = new Date()
           const ayer = new Date(); ayer.setDate(ayer.getDate() - 1)
           if (d.toDateString() === hoy.toDateString()) {
-            date = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+            date = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })
           } else if (d.toDateString() === ayer.toDateString()) {
             date = 'Ayer'
           } else {

@@ -63,7 +63,7 @@ export async function GET() {
     reunionesManana = (calRes.data.items ?? []).map(e => ({
       titulo: e.summary ?? '(sin título)',
       hora: e.start?.dateTime
-        ? new Date(e.start.dateTime).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+        ? new Date(e.start.dateTime).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })
         : 'Todo el día',
     }))
   } catch {}

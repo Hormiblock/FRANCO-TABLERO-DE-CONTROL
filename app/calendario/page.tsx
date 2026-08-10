@@ -23,7 +23,7 @@ function toDateStr(d: Date) {
 }
 
 function formatHora(isoStr: string) {
-  try { return new Date(isoStr).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) }
+  try { return new Date(isoStr).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' }) }
   catch { return '' }
 }
 
