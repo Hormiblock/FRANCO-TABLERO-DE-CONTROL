@@ -129,6 +129,10 @@ Formato: texto limpio, sin markdown, listo para recibir por email.`
   const emailDestino = perfilRes.data?.email ?? ''
   const nombre       = perfilRes.data?.nombre?.split(' ')[0] ?? 'Franco'
 
+  console.log('Perfil encontrado:', perfilRes.data)
+  console.log('Email destino:', emailDestino)
+  console.log('Error perfil:', perfilRes.error)
+
   if (emailDestino) {
     const asunto = `🌙 Cierre del día — ${fechaStr}`
     const cuerpo = `Buenas ${nombre},\n\n${reporte}\n\n---\nEnviado automáticamente por tu Tablero de Control.`
@@ -136,7 +140,16 @@ Formato: texto limpio, sin markdown, listo para recibir por email.`
       `To: ${emailDestino}\r\nSubject: ${asunto}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${cuerpo}`
     ).toString('base64url')
 
-    await gmail.users.messages.send({ userId: 'me', requestBody: { raw } })
+    try {
+      await gmail.users.messages.send({ userId: 'me', requestBody: { raw } })
+      console.log('Mail enviado a:', emailDestino)
+    } catch (sendErr) {
+      console.error('Error enviando mail:', sendErr)
+      return NextResponse.json({ ok: false, error: 'send_failed', detail: String(sendErr), emailDestino })
+    }
+  } else {
+    console.error('Sin email destino — perfil:', perfilRes.data, 'error:', perfilRes.error)
+    return NextResponse.json({ ok: false, error: 'no_email_destino', userId: user.id })
   }
 
   return NextResponse.json({ ok: true, reporte, emailsSinLeer: emailsSinLeer.length, reunionesManana: reunionesManana.length })
