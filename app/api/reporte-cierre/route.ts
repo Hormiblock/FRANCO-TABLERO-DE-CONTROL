@@ -1,19 +1,28 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { getGoogleAuthAndUser } from '@/lib/google-auth'
+import { getGoogleAuthAndUser, getGoogleAuthForCron } from '@/lib/google-auth'
 import { google } from 'googleapis'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-export async function GET() {
-  const authResult = await getGoogleAuthAndUser()
-  if ('error' in authResult) {
-    return NextResponse.json({ error: authResult.error }, { status: 403 })
-  }
+export async function GET(request: NextRequest) {
+  const cronSecret = request.headers.get('authorization')?.replace('Bearer ', '')
+  const esCron = cronSecret === process.env.CRON_SECRET
 
-  const { auth, user } = authResult
+  let auth, user
+  if (esCron) {
+    const result = await getGoogleAuthForCron()
+    if ('error' in result) return NextResponse.json({ error: result.error }, { status: 403 })
+    auth = result.auth
+    user = { id: result.userId, email: 'fmanzone@ostara360.com.ar' }
+  } else {
+    const result = await getGoogleAuthAndUser()
+    if ('error' in result) return NextResponse.json({ error: result.error }, { status: 403 })
+    auth = result.auth
+    user = result.user
+  }
 
   const gmail    = google.gmail({ version: 'v1', auth })
   const calendar = google.calendar({ version: 'v3', auth })
