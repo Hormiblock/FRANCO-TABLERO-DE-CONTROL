@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import AppShell from '@/components/layout/AppShell'
 import { EMPRESAS, type Empresa } from '@/lib/utils'
-import { Plus, Loader2, X, ExternalLink, CheckCircle, Clock, Archive, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Loader2, X, ExternalLink, CheckCircle, Clock, Archive, ChevronDown, ChevronUp, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Proyecto {
@@ -36,6 +36,7 @@ export default function ProyectosPage() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [loading, setLoading]     = useState(true)
   const [modal, setModal]         = useState(false)
+  const [editando, setEditando]   = useState<Proyecto | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [expandido, setExpandido] = useState<string | null>(null)
   const [filtroEstado, setFiltroEstado] = useState<Proyecto['estado'] | 'todos'>('todos')
@@ -76,6 +77,39 @@ export default function ProyectosPage() {
     setForm({ titulo:'', descripcion:'', empresa:'ostara', estado:'activo', fecha_inicio:'', fecha_fin:'', responsable:'', asana_url:'' })
     setGuardando(false)
     cargar()
+  }
+
+  async function guardarEdicion() {
+    if (!editando || !form.titulo.trim()) return
+    setGuardando(true)
+    const supabase = createClient()
+    await supabase.from('proyectos').update({
+      titulo:      form.titulo.trim(),
+      descripcion: form.descripcion.trim(),
+      empresa:     form.empresa,
+      estado:      form.estado,
+      fecha_inicio: form.fecha_inicio || null,
+      fecha_fin:    form.fecha_fin    || null,
+      responsable:  form.responsable.trim(),
+      asana_url:    form.asana_url.trim(),
+    }).eq('id', editando.id)
+    setEditando(null)
+    setGuardando(false)
+    cargar()
+  }
+
+  function abrirEdicion(p: Proyecto) {
+    setForm({
+      titulo:      p.titulo,
+      descripcion: p.descripcion ?? '',
+      empresa:     p.empresa,
+      estado:      p.estado,
+      fecha_inicio: p.fecha_inicio ?? '',
+      fecha_fin:    p.fecha_fin    ?? '',
+      responsable:  p.responsable  ?? '',
+      asana_url:    p.asana_url    ?? '',
+    })
+    setEditando(p)
   }
 
   async function cambiarEstado(id: string, estado: Proyecto['estado']) {
@@ -189,6 +223,12 @@ export default function ProyectosPage() {
                   {/* Detalle expandido */}
                   {abierto && (
                     <div className="px-4 pb-4 space-y-3 border-t border-[var(--border)] pt-3">
+                      <button
+                        onClick={() => abrirEdicion(p)}
+                        className="flex items-center gap-1.5 text-xs text-[var(--primary)] font-semibold"
+                      >
+                        <Pencil size={13} /> Editar proyecto
+                      </button>
                       {p.descripcion && (
                         <p className="text-sm text-[var(--muted-foreground)]">{p.descripcion}</p>
                       )}
@@ -319,6 +359,80 @@ export default function ProyectosPage() {
               className="w-full bg-[var(--primary)] text-white font-semibold py-3.5 rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2">
               {guardando && <Loader2 size={16} className="animate-spin" />}
               Guardar proyecto
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Modal editar proyecto */}
+      {editando && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setEditando(null)}>
+          <div className="bg-white w-full rounded-t-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <p className="font-bold text-lg">Editar proyecto</p>
+              <button onClick={() => setEditando(null)}><X size={20} /></button>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--muted-foreground)] mb-1 block">Título *</label>
+              <input autoFocus className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--primary)]"
+                value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[var(--muted-foreground)] mb-1 block">Empresa</label>
+                <select className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm"
+                  value={form.empresa} onChange={e => setForm(f => ({ ...f, empresa: e.target.value as Empresa }))}>
+                  {EMPRESAS_LIST.map(e => <option key={e} value={e}>{EMPRESAS[e].label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--muted-foreground)] mb-1 block">Estado</label>
+                <select className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm"
+                  value={form.estado} onChange={e => setForm(f => ({ ...f, estado: e.target.value as Proyecto['estado'] }))}>
+                  <option value="activo">Activo</option>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="finalizado">Finalizado</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--muted-foreground)] mb-1 block">Responsable</label>
+              <input className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--primary)]"
+                value={form.responsable} onChange={e => setForm(f => ({ ...f, responsable: e.target.value }))} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[var(--muted-foreground)] mb-1 block">Fecha inicio</label>
+                <input type="date" className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm"
+                  value={form.fecha_inicio} onChange={e => setForm(f => ({ ...f, fecha_inicio: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--muted-foreground)] mb-1 block">Fecha cierre</label>
+                <input type="date" className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm"
+                  value={form.fecha_fin} onChange={e => setForm(f => ({ ...f, fecha_fin: e.target.value }))} />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--muted-foreground)] mb-1 block">Descripción</label>
+              <textarea className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-[var(--primary)]"
+                rows={2} value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--muted-foreground)] mb-1 block">Link de Asana</label>
+              <input className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--primary)]"
+                placeholder="https://app.asana.com/..."
+                value={form.asana_url} onChange={e => setForm(f => ({ ...f, asana_url: e.target.value }))} />
+            </div>
+
+            <button onClick={guardarEdicion} disabled={!form.titulo.trim() || guardando}
+              className="w-full bg-[var(--primary)] text-white font-semibold py-3.5 rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2">
+              {guardando && <Loader2 size={16} className="animate-spin" />}
+              Guardar cambios
             </button>
           </div>
         </div>
