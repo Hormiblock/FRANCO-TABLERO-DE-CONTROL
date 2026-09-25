@@ -1,5 +1,6 @@
 import { google } from 'googleapis'
-import { createServerClient, createClient } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 // Para crons — usa service role y busca el token del admin sin sesión
